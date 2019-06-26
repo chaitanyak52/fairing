@@ -5,7 +5,6 @@ import sys
 import fairing
 from fairing.builders.docker.docker import DockerBuilder
 from fairing.builders.cluster import gcs_context
-from fairing.builders.cluster import azure_context
 from fairing.builders.cluster.cluster import ClusterBuilder
 from fairing.builders.cluster import s3_context
 from fairing.builders.cluster import blob_context
@@ -181,7 +180,7 @@ class AzureBackend(KubernetesBackend):
                                   base_image=base_image,
                                   registry=registry,
                                   pod_spec_mutators=pod_spec_mutators,
-                                  context_source=azure_context.AzureContextSource(namespace="kubeflow"))
+                                  context_source=blob_context.AzureContextSource(namespace="kubeflow"))
         elif ml_tasks_utils.is_docker_daemon_exists():
             return DockerBuilder(preprocessor=preprocessor,
                                  base_image=base_image,
