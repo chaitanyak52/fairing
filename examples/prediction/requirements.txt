@@ -4,3 +4,4 @@ numpy
 xgboost
 scikit-learn>=0.21.0
 seldon-core
+azure
