@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-
 from azure.common.client_factory import get_client_from_auth_file
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 from azure.mgmt.storage import StorageManagementClient
@@ -9,13 +8,10 @@ from azure.storage.blob import BlockBlobService
 from fairing.constants import constants
 from kubernetes import client
 from azure.mgmt.storage.models import StorageAccountCreateParameters
-from azure.mgmt.storage.models import (
-    StorageAccountCreateParameters,
-    StorageAccountUpdateParameters,
-    Sku,
-    SkuName,
-    Kind
-)
+from azure.mgmt.storage.models import Sku
+from azure.mgmt.storage.models import SkuName
+from azure.mgmt.storage.models import Kind
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,6 +81,7 @@ def add_azure_credentials(kube_manager, pod_spec, namespace):
 
     # Set appropriate secrets and volumes to enable kubeflow-user service
     # account.
+    logging.warn("Adding azure auth location")
     env_var = client.V1EnvVar(
         name='AZURE_AUTH_LOCATION',
         value='/etc/secrets/azure-credentials.json')
@@ -109,47 +106,3 @@ def add_azure_credentials(kube_manager, pod_spec, namespace):
         pod_spec.volumes = [volume]
 
 
-
-def add_acr_config(kube_manager, pod_spec, namespace):
-    if not kube_manager.secret_exists('acr-config', namespace):
-        secret = client.V1Secret(
-            metadata = client.V1ObjectMeta(name='acr-config'),
-            string_data={
-                'config.json': '{"credsStore": "acr-login"}'
-            })
-        kube_manager.create_secret(namespace, secret)
-
-    volume_mount=client.V1VolumeMount(
-            name='acr-config', mount_path='/kaniko/.docker/', read_only=True)
-
-    if pod_spec.containers[0].volume_mounts:
-        pod_spec.containers[0].volume_mounts.append(volume_mount)
-    else:
-        pod_spec.containers[0].volume_mounts = [volume_mount]
-
-    volume=client.V1Volume(
-            name='acr-config',
-            secret=client.V1SecretVolumeSource(secret_name='acr-config'))
-
-    if pod_spec.volumes:
-        pod_spec.volumes.append(volume)
-    else:
-        pod_spec.volumes = [volume]
-
-
-def is_acr_registry(registry):
-    return registry.endswith(".azurecr.io")
-
-def create_acr_registry(registry, repository):
-    acr_client = get_client_from_auth_file(ContainerRegistryManagementClient)
-    registry = acr_client.registries.create(
-        resource_group_name=resource_group_name,
-        registry_name=registry,
-        registry=Registry(
-            location=region,
-            sku=Sku(
-                name=SkuName.premium
-            )
-        )
-    ).result()
-    # TODO ME create the registry

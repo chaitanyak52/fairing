@@ -10,7 +10,7 @@ from fairing.kubernetes.manager import KubeManager, client
 
 class BlobContextSource(ContextSourceInterface):
     def __init__(self, region=None, storage_account_name=None, group_name=None, container_name=None, namespace='default'):
-        self.region = region or "east-us"
+        self.region = region or "westeurope"
         # TODO ME note that the generated name is not necessarily unique due to truncation...
         self.storage_account_name = storage_account_name or f"{uuid.uuid4().hex[:24]}"
         self.container_name = container_name or "fairing-demo"
@@ -25,7 +25,7 @@ class BlobContextSource(ContextSourceInterface):
         self.uploaded_context_url = self.upload_context(context_filename)
 
     def upload_context(self, context_filename):
-        azure_uploader = azure.AzureUploader()
+        azure_uploader = azure.AzureUploader(self.region)
         context_hash = utils.crc(context_filename)
         # TODO ME find out what's happening with the return value
         return azure_uploader.upload_to_container(

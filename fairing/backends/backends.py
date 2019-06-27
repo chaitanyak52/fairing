@@ -1,7 +1,7 @@
 import abc
 import six
 import sys
-
+import logging
 import fairing
 from fairing.builders.docker.docker import DockerBuilder
 from fairing.builders.cluster import gcs_context
@@ -16,9 +16,10 @@ from fairing.deployers.serving.serving import Serving
 from fairing.cloud import aws
 from fairing.cloud import azure
 from fairing.cloud import gcp
-import fairing.ml_tasks.utils as ml_tasks_utils
+from fairing.ml_tasks import utils as ml_tasks_utils
 from fairing.constants import constants
 from fairing.kubernetes.manager import KubeManager
+logger = logging.getLogger(__name__)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -92,6 +93,7 @@ class GKEBackend(KubernetesBackend):
     def get_builder(self, preprocessor, base_image, registry, needs_deps_installation=True, pod_spec_mutators=None):
         pod_spec_mutators = pod_spec_mutators or []
         pod_spec_mutators.append(gcp.add_gcp_credentials_if_exists)
+        logger.warn(pod_spec_mutators)
 
         if not needs_deps_installation:
             return AppendBuilder(preprocessor=preprocessor,
@@ -175,12 +177,14 @@ class AzureBackend(KubernetesBackend):
             return AppendBuilder(preprocessor=preprocessor,
                                  base_image=base_image,
                                  registry=registry)
-        elif fairing.utils.is_running_in_k8s():
-            return ClusterBuilder(preprocessor=preprocessor,
-                                  base_image=base_image,
-                                  registry=registry,
-                                  pod_spec_mutators=pod_spec_mutators,
-                                  context_source=blob_context.AzureContextSource(namespace="kubeflow"))
+        elif (fairing.utils.is_running_in_k8s() or \
+                  not ml_tasks_utils.is_docker_daemon_exists()) and \
+                 KubeManager().secret_exists(constants.AZURE_CREDS_SECRET_NAME, self._namespace):
+                return ClusterBuilder(preprocessor=preprocessor,
+                                      base_image=base_image,
+                                      registry=registry,
+                                      pod_spec_mutators=pod_spec_mutators,
+                                      context_source=blob_context.BlobContextSource(namespace="kubeflow"))
         elif ml_tasks_utils.is_docker_daemon_exists():
             return DockerBuilder(preprocessor=preprocessor,
                                  base_image=base_image,
